@@ -26,7 +26,7 @@ describe(OpauthExtended::class, function () {
         $_SERVER['HTTP_HOST'] = 'some-host';
         $_SERVER['REQUEST_URI'] = 'some-uri';
     });
-    describe('->callbackExtended()', function () {
+    describe('->callback()', function () {
         describe('fetching the response', function () {
             beforeAll(function () {
                 $this->get_msg = [
@@ -53,7 +53,7 @@ describe(OpauthExtended::class, function () {
                         ->toReceive('unpackResponse')
                         ->with($this->post_string);
 
-                    $this->opauth->callbackExtended();
+                    $this->opauth->callback();
                 });
             });
 
@@ -67,7 +67,7 @@ describe(OpauthExtended::class, function () {
                         ->toReceive('unpackResponse')
                         ->with($this->get_string);
 
-                    $this->opauth->callbackExtended();
+                    $this->opauth->callback();
                 });
             });
 
@@ -82,7 +82,7 @@ describe(OpauthExtended::class, function () {
                         ->with($this->get_string);
 
                     $closure = function () {
-                        $this->opauth->callbackExtended();
+                        $this->opauth->callback();
                     };
 
                     $exception_msg = "Unsupported callback_transport: '{$this->opauth->env['callback_transport']}'";

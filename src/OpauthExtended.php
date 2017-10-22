@@ -21,7 +21,7 @@ class OpauthExtended extends \Opauth
     /**
      * @return array
      */
-    public function callbackExtended()
+    public function callback()
     {
         $response = $this->getResponse();
 
