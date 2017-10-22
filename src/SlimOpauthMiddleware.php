@@ -22,24 +22,29 @@ class SlimOpauthMiddleware
     protected $config = [];
 
     /**
+     * @var UserService
+     */
+    protected $user_service;
+    /**
      * @var string
      */
-    protected $auth_route_regex = '~/auth/([^/]+)/?([^/]+)?~';
+    const AUTH_ROUTE_REGEX = '~[prefix]([^/]+)/?([^/]+)?~';
 
     /**
      * @var string
      */
-    protected $auth_callback_regex = '';
+    const AUTH_CALLBACK_REGEX = '~[prefix]callback/?~';
 
     /**
      * OpauthMiddleware constructor
      * @param array $config
+     * @param UserService $user_service
      */
-    public function __construct(array $config = [])
+    public function __construct(array $config = [], UserService $user_service)
     {
         $this->setConfig($config);
+        $this->setUserService($user_service);
     }
-
 
     /**
      * Invoke middleware
@@ -53,8 +58,14 @@ class SlimOpauthMiddleware
     public function __invoke(Request $request, Response $response, callable $next)
     {
         if ($this->checkPathQualifies($request)) {
-            $this->main();
+            try {
+                $user = $this->main($request);
+                $this->getUserService()->handleCallback($request, $response, $user);
+            } catch (\Exception $e) {
+                $this->getUserService()->handleException($e);
+            }
         }
+
         return $next($request, $response);
     }
 
@@ -79,15 +90,35 @@ class SlimOpauthMiddleware
      */
     public function getAuthRouteRegex()
     {
-        return $this->auth_route_regex;
+        $path = $this->getConfig()['path'];
+
+        return str_replace('[prefix]', $path, static::AUTH_ROUTE_REGEX);
     }
 
     /**
-     * @param string $auth_route_regex
+     * @return string
      */
-    public function setAuthRouteRegex($auth_route_regex)
+    public function getAuthCallbackRegex()
     {
-        $this->auth_route_regex = $auth_route_regex;
+        $path = $this->getConfig()['path'];
+
+        return str_replace('[prefix]', $path, static::AUTH_CALLBACK_REGEX);
+    }
+
+    /**
+     * @return UserService
+     */
+    public function getUserService()
+    {
+        return $this->user_service;
+    }
+
+    /**
+     * @param UserService $user_service
+     */
+    public function setUserService($user_service)
+    {
+        $this->user_service = $user_service;
     }
 
     /**
@@ -112,15 +143,45 @@ class SlimOpauthMiddleware
         $path = $request->getUri()->getPath();
         if (!is_string($path)) {
             $trigger = false;
-        } elseif (!preg_match($this->getAuthRouteRegex(), $path, $matches)) {
+        } elseif (!$this->pathMatchesAuth($path)) {
             $trigger = false;
         }
 
         return $trigger;
     }
 
-    protected function main()
+    /**
+     * @param string $path
+     * @return bool
+     */
+    protected function pathMatchesAuth($path)
     {
-        $this->getOpauth()->run();
+        return !!preg_match($this->getAuthRouteRegex(), $path, $matches);
+    }
+
+    /**
+     * @param string $path
+     * @return bool
+     */
+    protected function pathMatchesCallback($path)
+    {
+        return !!preg_match($this->getAuthCallbackRegex(), $path, $matches);
+    }
+
+    /**
+     * @param Request $request
+     * @return array
+     */
+    protected function main(Request $request)
+    {
+        $path = $request->getUri()->getPath();
+        $user = [];
+        if ($this->pathMatchesCallback($path)) {
+            $user = $this->getOpauth()->callback();
+        } else {
+            $this->getOpauth()->run();
+        }
+
+        return $user;
     }
 }
