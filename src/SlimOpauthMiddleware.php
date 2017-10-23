@@ -22,7 +22,7 @@ class SlimOpauthMiddleware
     protected $config = [];
 
     /**
-     * @var UserService
+     * @var UserServiceInterface
      */
     protected $user_service;
     /**
@@ -38,9 +38,9 @@ class SlimOpauthMiddleware
     /**
      * OpauthMiddleware constructor
      * @param array $config
-     * @param UserService $user_service
+     * @param UserServiceInterface $user_service
      */
-    public function __construct(array $config = [], UserService $user_service)
+    public function __construct(array $config = [], UserServiceInterface $user_service)
     {
         $this->setConfig($config);
         $this->setUserService($user_service);
@@ -60,9 +60,10 @@ class SlimOpauthMiddleware
         if ($this->checkPathQualifies($request)) {
             try {
                 $user = $this->main($request);
-                $this->getUserService()->handleCallback($request, $response, $user);
+                $entity = new UserEntity($user);
+                return $this->getUserService()->handleCallback($entity, $request, $response);
             } catch (\Exception $e) {
-                $this->getUserService()->handleException($e);
+                $this->getUserService()->handleException($e, $request, $response);
             }
         }
 
@@ -106,7 +107,7 @@ class SlimOpauthMiddleware
     }
 
     /**
-     * @return UserService
+     * @return UserServiceInterface
      */
     public function getUserService()
     {
@@ -114,7 +115,7 @@ class SlimOpauthMiddleware
     }
 
     /**
-     * @param UserService $user_service
+     * @param UserServiceInterface $user_service
      */
     public function setUserService($user_service)
     {
